@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP IFA Brasil</title>
+    <!-- SheetJS: primero intenta local, si falla intenta CDN -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script>
+        if (typeof XLSX === 'undefined') {
+            console.warn('SheetJS local no encontrado, intentando CDN...');
+            var s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            s.onerror = function() {
+                document.body.innerHTML = '<div style="text-align:center;margin-top:100px;font-family:Arial;">' +
+                    '<h1 style="color:#e74c3c;">Error: Libreria XLSX no disponible</h1>' +
+                    '<p>No se encontro el archivo <b>xlsx.full.min.js</b> en la carpeta Sistema/</p>' +
+                    '<p>Y no se pudo descargar desde internet.</p>' +
+                    '<hr style="margin:20px auto;width:400px;">' +
+                    '<p><b>Solucion:</b> Verifique que el archivo <code>xlsx.full.min.js</code> este en la carpeta <code>ERP_IFA_BRASIL/Sistema/</code></p>' +
+                    '</div>';
+            };
+            document.head.appendChild(s);
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #FAF8F5;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #2C2C2C;
+            color: #E8E0D8;
+            overflow-y: auto;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .sidebar-logo {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-left-color: #fff;
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.2);
+            border-left-color: #C41E3A;
+        }
+
+        .submenu {
+            display: none;
+            background: rgba(0,0,0,0.15);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s;
+        }
+
+        .submenu.show {
+            display: block;
+            max-height: 500px;
+        }
+
+        .submenu li {
+            padding: 10px 20px 10px 40px;
+            font-size: 13px;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submenu li:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .submenu li.active {
+            background: rgba(255,255,255,0.2);
+            border-left-color: #C41E3A;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            display: flex;
+            flex-direction: column;
+            width: calc(100% - 250px);
+            height: 100vh;
+        }
+
+        .header {
+            background: #FFFFFF;
+            color: #2C2C2C;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-bottom: 3px solid #C41E3A;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .company-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .user-info {
+            text-align: right;
+            font-size: 13px;
+            color: #2C2C2C;
+        }
+
+        .user-info div {
+            margin: 2px 0;
+        }
+
+        .tc-display {
+            font-size: 12px;
+            background: #FAF3ED;
+            color: #2C2C2C;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #C41E3A;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #A01830;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: #FAF8F5;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #C41E3A;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 5px solid #C41E3A;
+        }
+
+        .summary-card h3 {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .summary-card .value {
+            font-size: 28px;
+            color: #2C2C2C;
+            font-weight: bold;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        table thead {
+            background: #3C3C3C;
+            color: white;
+        }
+
+        table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        table tbody tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-yellow {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-green {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-red {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-blue {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-gray {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 6px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-content.wide {
+            max-width: 900px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #C41E3A;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            color: #C41E3A;
+            font-size: 20px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-btn:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #C41E3A;
+            box-shadow: 0 0 5px rgba(196, 30, 58, 0.3);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-row.full {
+            grid-template-columns: 1fr;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            z-index: 3000;
+            animation: slideIn 0.3s ease;
+            max-width: 400px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            background: #28a745;
+        }
+
+        .toast.error {
+            background: #dc3545;
+        }
+
+        .toast.info {
+            background: #17a2b8;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #C41E3A;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar input,
+        .filter-bar select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .tab {
+            padding: 15px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab.active {
+            color: #C41E3A;
+            border-bottom-color: #C41E3A;
+        }
+
+        .tab:hover {
+            background: #f9f9f9;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .dynamic-rows {
+            margin: 15px 0;
+        }
+
+        .row-item {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr) 50px;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: end;
+        }
+
+        .row-item input,
+        .row-item select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .row-item button {
+            padding: 8px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .row-item button:hover {
+            background: #c82333;
+        }
+
+        .stock-warning {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .stock-ok {
+            color: #28a745;
+        }
+
+        .data-loading {
+            padding: 40px;
+            text-align: center;
+            background: white;
+            border-radius: 6px;
+            margin: 20px;
+        }
+
+        .data-loading h3 {
+            color: #C41E3A;
+            margin-bottom: 20px;
+        }
+
+        .file-list {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .file-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 4px solid #ddd;
+            border-radius: 2px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-item.loaded {
+            border-left-color: #28a745;
+            background: #f0fdf4;
+        }
+
+        .checkmark {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .confirmation-dialog {
+            background: white;
+            padding: 30px;
+            border-radius: 6px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .confirmation-dialog p {
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        .confirmation-dialog .btn-group {
+            justify-content: center;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-buttons button {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        #login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #FAF8F5 0%, #F0EBE3 100%);
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .login-card h1 {
+            text-align: center;
+            color: #C41E3A;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .login-card .form-group {
+            margin-bottom: 20px;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .data-loading-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 6px;
+            margin: 20px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .data-loading-panel h2 {
+            color: #C41E3A;
+            margin-bottom: 20px;
+        }
+
+        .data-loading-panel p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #28a745;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .mobile-menu-btn { display: none !important; }
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: block !important; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 10px 0;
+            }
+            .sidebar-logo {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 15px 10px;
+            }
+            .sidebar-menu {
+                display: none;
+                flex-direction: column;
+            }
+            .sidebar-menu.mobile-show {
+                display: flex;
+            }
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+            .header {
+                flex-wrap: wrap;
+                padding: 10px 15px;
+            }
+            .header-left {
+                gap: 10px;
+            }
+            .company-name {
+                font-size: 14px;
+            }
+            .tc-display {
+                font-size: 10px;
+            }
+            .content-area {
+                padding: 15px;
+            }
+            .summary-cards {
+                grid-template-columns: 1fr 1fr;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                width: 95%;
+                padding: 15px;
+                max-height: 95vh;
+            }
+            .modal-content.wide {
+                max-width: 95%;
+            }
+            table {
+                font-size: 11px;
+            }
+            table th, table td {
+                padding: 8px 6px;
+            }
+            .row-item {
+                grid-template-columns: 1fr 1fr;
+            }
+            .filter-bar {
+                flex-direction: column;
+            }
+            .page-title {
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            .header-right {
+                display: none;
+            }
+            .btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="login-container">
+    <div class="login-card">
+        <div style="text-align:center;margin-bottom:15px;"><img src="logo_ifa.png" alt="IFA" style="height:60px;"></div>
+        <h1>ERP IFA Brasil</h1>
+        <div class="form-group">
+            <label id="login-label-user">Usuario</label>
+            <input type="text" id="login-user" placeholder="Ingrese su usuario">
+        </div>
+        <div class="form-group">
+            <label id="login-label-pass">Contrase&#241;a</label>
+            <input type="password" id="login-pass" placeholder="Ingrese su contrase&#241;a">
+        </div>
+        <button id="login-btn" class="btn btn-primary" style="width: 100%; padding: 12px;" onclick="handleLogin()">Ingresar</button>
+        <script>
+            document.getElementById('login-pass').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') handleLogin();
+            });
+            document.getElementById('login-user').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('login-pass').focus();
+            });
+            // Apply saved language to login page
+            (function() {
+                var lang = localStorage.getItem('erp_lang') || 'pt';
+                if (lang === 'pt') {
+                    document.getElementById('login-label-user').textContent = 'Usu\u00e1rio';
+                    document.getElementById('login-label-pass').textContent = 'Senha';
+                    document.getElementById('login-btn').textContent = 'Entrar';
+                    document.getElementById('login-user').placeholder = 'Informe seu usu\u00e1rio';
+                    document.getElementById('login-pass').placeholder = 'Informe sua senha';
+                }
+            })();
+        </script>
+        <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+            Demo: admin / admin2026
+        </p>
+        <div style="text-align:center;margin-top:10px;">
+            <button onclick="switchLanguage('es')" style="background:none;border:1px solid #ddd;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:11px;margin:0 3px;">ES</button>
+            <button onclick="switchLanguage('pt')" style="background:none;border:1px solid #ddd;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:11px;margin:0 3px;">PT</button>
+        </div>
+    </div>
+</div>
+
+<div id="main-app" class="hidden">
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-logo"><img src="logo_ifa.png" alt="IFA" style="height:35px;margin-right:10px;vertical-align:middle;"><span>IFA Brasil</span><button onclick="document.querySelector('.sidebar-menu').classList.toggle('mobile-show')" style="display:none;background:none;border:none;color:#E8E0D8;font-size:24px;cursor:pointer;" class="mobile-menu-btn">&#9776;</button></div>
+            <ul class="sidebar-menu" id="sidebar-menu"></ul>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <div class="company-name">ERP IFA Brasil</div>
+                    <div class="tc-display" onclick="fetchExchangeRate()" title="Click para actualizar TC">TC: 1 USD = <span id="tc-value">5.00</span> BRL<span id="tc-updated" style="font-size:9px;opacity:0.7;display:block;"></span></div>
+                </div>
+                <div style="position:relative;">
+                    <input type="text" id="global-search" placeholder="Buscar..." style="padding:6px 30px 6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:250px;" oninput="globalSearch(this.value)">
+                    <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#999;">&#128269;</span>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-primary btn-small" onclick="saveAllData()">Guardar Todo</button>
+                    <span id="save-status" style="font-size:11px;margin-left:8px;"></span>
+                    <div class="user-info">
+                        <div><strong id="user-name">Usuario</strong></div>
+                        <div><span id="user-role">Rol</span> - Nivel <span id="user-level">1</span></div>
+                    </div>
+                    <select id="lang-switch" onchange="switchLanguage(this.value)" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;background:white;margin-right:10px;">
+                        <option value="es">ES</option>
+                        <option value="pt">PT</option>
+                    </select>
+                    <button class="btn btn-danger btn-small" onclick="handleLogout()">Salir</button>
+                </div>
+            </div>
+
+            <div id="offline-banner" style="display:none; background:#FFF3CD; color:#856404; padding:8px 16px; text-align:center; font-size:13px; border-bottom:1px solid #FFEEBA; flex-shrink:0;">
+                Modo Lectura Offline | Datos del: <span id="cache-date">-</span> | Para guardar cambios, abra desde la PC con INICIAR_ERP.bat
+            </div>
+
+            <div class="content-area" id="content-area">
+                <!-- Content loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
